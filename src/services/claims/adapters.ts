@@ -17,7 +17,7 @@
  * wrong. The interface below is the integration seam for when they are.
  */
 import type { DB } from '@/db';
-import { claims, claimLines, encounterDiagnoses, invoiceLines, patients, practitioners, users, locations, invoices, medicalSchemes, medicalSchemeOptions, patientMedicalAid, encounters } from '@/db/schema';
+import { claims, claimLines, patients, practitioners, users, locations, invoices, medicalSchemes, medicalSchemeOptions, patientMedicalAid } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { AppError } from '@/lib/errors';
 
@@ -158,7 +158,7 @@ export function buildClaimBundle(db: DB, claim: typeof claims.$inferSelect): Cla
     ? db.select().from(medicalSchemeOptions).where(eq(medicalSchemeOptions.id, claim.schemeOptionId)).get()
     : null;
   const aid = db.select().from(patientMedicalAid).where(eq(patientMedicalAid.patientId, patient.id)).get();
-  const practice = db
+  const practice = db.$client
     .prepare(`SELECT id, name, practice_number AS practiceNumber FROM practices WHERE id = ?`)
     .get(claim.practiceId) as { id: string; name: string; practiceNumber: string };
   const location = db.select().from(locations).where(eq(locations.id, invoice.locationId)).get();
@@ -171,7 +171,6 @@ export function buildClaimBundle(db: DB, claim: typeof claims.$inferSelect): Cla
         .get()
     : null;
   const lines = db.select().from(claimLines).where(eq(claimLines.claimId, claim.id)).all();
-  const encounter = db.select().from(encounters).where(eq(encounters.id, claim.encounterId)).get();
 
   return {
     claimId: claim.id,
@@ -207,4 +206,4 @@ export function buildClaimBundle(db: DB, claim: typeof claims.$inferSelect): Cla
   };
 }
 
-export { claimLines, encounterDiagnoses, invoiceLines };
+export { claimLines };

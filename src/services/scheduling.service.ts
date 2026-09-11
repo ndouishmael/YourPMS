@@ -167,7 +167,7 @@ export async function checkInPatient(
   const patient = db.select().from(patients).where(eq(patients.id, input.patientId)).get();
   if (!patient || patient.practiceId !== practiceId) throw notFound('Patient not found');
 
-  let appointment = null as typeof appointments.$inferSelect | null;
+  let appointment: typeof appointments.$inferSelect | null | undefined = null;
   if (input.appointmentId) {
     appointment = db.select().from(appointments).where(eq(appointments.id, input.appointmentId)).get();
     if (!appointment || appointment.practiceId !== practiceId) throw notFound('Appointment not found');

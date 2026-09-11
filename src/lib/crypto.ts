@@ -4,15 +4,16 @@
  */
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypto';
 
-const SCRYPT_N = 1 << 15;
+const SCRYPT_N = 1 << 15; // 32 MiB memory hardness
 const SCRYPT_r = 8;
 const SCRYPT_p = 1;
 const KEY_LEN = 32;
 const SALT_LEN = 16;
+const SCRYPT_MAXMEM = 128 * SCRYPT_N * SCRYPT_r * 2; // headroom above the derived requirement
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(SALT_LEN);
-  const hash = scryptSync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_r, p: SCRYPT_p });
+  const hash = scryptSync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_r, p: SCRYPT_p, maxmem: SCRYPT_MAXMEM });
   return `scrypt$${SCRYPT_N}$${SCRYPT_r}$${SCRYPT_p}$${salt.toString('base64')}$${hash.toString('base64')}`;
 }
 
@@ -26,6 +27,7 @@ export function verifyPassword(password: string, stored: string): boolean {
       N: parseInt(n, 10),
       r: parseInt(r, 10),
       p: parseInt(p, 10),
+      maxmem: 128 * parseInt(n, 10) * parseInt(r, 10) * 2,
     });
     return timingSafeEqual(actual, expected);
   } catch {

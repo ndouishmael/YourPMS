@@ -18,7 +18,6 @@ import {
   paymentAdjustments,
   encounters,
   patients,
-  practices,
   claims,
   practitioners,
   users,
@@ -33,16 +32,8 @@ import type { ActorContext } from './scheduling.service';
 
 export interface GeneratedInvoice {
   id: string;
+  invoiceNumber: number;
   totalCents: number;
-}
-
-function nextInvoiceNumber(db: DB, practiceId: string): number {
-  const row = db
-    .select({ n: sql<number>`coalesce(max(${invoices.invoiceNumber}), 0)` })
-    .from(invoices)
-    .where(eq(invoices.practiceId, practiceId))
-    .get();
-  return (row?.n ?? 0) + 1;
 }
 
 /**
@@ -205,7 +196,7 @@ export async function recordPatientPayment(ctx: ActorContext, input: RecordPayme
         eq(payments.method, input.method),
         eq(payments.amountCents, input.amountCents),
         eq(payments.status, 'ACTIVE'),
-        sql`${payments.receivedAt} > ${new Date(Date.now() - 60_000)}`,
+        sql`${payments.receivedAt} > ${Date.now() - 60_000}`,
       ),
     )
     .get();
@@ -407,7 +398,7 @@ export async function regenerateInvoice(ctx: ActorContext, encounterId: string) 
   if (existing.some((i) => i.status !== 'VOID')) throw unprocessable('An active invoice already exists for this encounter');
 
   // Re-issue from encounter items: temporarily allow generation from AWAITING_BILLING.
-  const items = db
+  const items = db.$client
     .prepare(`SELECT tariff_code AS tariffCode, description, units, unit_price_cents AS unitPriceCents, amount_cents AS amountCents FROM encounter_items WHERE encounter_id = ?`)
     .all(encounterId) as Array<{ tariffCode: string; description: string; units: number; unitPriceCents: number; amountCents: number }>;
   if (!items.length) throw unprocessable('Encounter has no billable items');

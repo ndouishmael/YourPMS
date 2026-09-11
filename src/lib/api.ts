@@ -19,7 +19,6 @@ export function errorResponse(err: unknown): NextResponse {
   if (err instanceof AppError) {
     return json({ error: err.message, code: err.code }, err.status);
   }
-  // eslint-disable-next-line no-console
   console.error('[api] unhandled error:', err);
   return json({ error: 'Internal server error', code: 'INTERNAL' }, 500);
 }

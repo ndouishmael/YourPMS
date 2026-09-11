@@ -171,6 +171,13 @@ export function validateOrigin(req: NextRequest): boolean {
   return true;
 }
 
+/** Enforce origin validation on pre-auth mutation endpoints (login CSRF defense). */
+export function assertOrigin(req: NextRequest): void {
+  if (!validateOrigin(req)) {
+    throw new AppError('Cross-origin request rejected', 403, 'ORIGIN_REJECTED');
+  }
+}
+
 export function validateCsrf(req: NextRequest, sessionCsrfToken: string): boolean {
   const header = req.headers.get('x-csrf-token');
   if (!header) return false;
@@ -279,12 +286,18 @@ export function requireAuth(req: NextRequest): AuthContext {
   const practice = db.select().from(practices).where(eq(practices.id, membership.practiceId)).get();
   if (!practice || practice.status !== 'ACTIVE') throw forbidden('Practice is not active');
 
-  const locs = db
-    .select({ location: locations })
-    .from(locationMemberships)
-    .innerJoin(locations, eq(locations.id, locationMemberships.locationId))
-    .where(eq(locationMemberships.membershipId, membership.id))
-    .all();
+  // The practice owner is implicitly authorized for every location of their
+  // practice; other roles carry explicit location memberships.
+  const locationIds =
+    membership.role === 'OWNER'
+      ? db.select({ id: locations.id }).from(locations).where(eq(locations.practiceId, practice.id)).all().map((l) => l.id)
+      : db
+          .select({ location: locations })
+          .from(locationMemberships)
+          .innerJoin(locations, eq(locations.id, locationMemberships.locationId))
+          .where(eq(locationMemberships.membershipId, membership.id))
+          .all()
+          .map((l) => l.location.id);
 
   return {
     db,
@@ -295,7 +308,7 @@ export function requireAuth(req: NextRequest): AuthContext {
     practiceId: practice.id,
     practiceName: practice.name,
     role: membership.role as PracticeRole,
-    locationIds: locs.map((l) => l.location.id),
+    locationIds,
     permissions: permissionsFor(membership.role as PracticeRole),
     supportGrantId: null,
     ip,
@@ -412,19 +425,23 @@ export async function getPageAuth(): Promise<PageAuthContext | null> {
   if (!membership) return null;
   const practice = db.select().from(practices).where(eq(practices.id, membership.practiceId)).get();
   if (!practice) return null;
-  const locs = db
-    .select({ location: locations })
-    .from(locationMemberships)
-    .innerJoin(locations, eq(locations.id, locationMemberships.locationId))
-    .where(eq(locationMemberships.membershipId, membership.id))
-    .all();
+  const locationIds =
+    membership.role === 'OWNER'
+      ? db.select({ id: locations.id }).from(locations).where(eq(locations.practiceId, practice.id)).all().map((l) => l.id)
+      : db
+          .select({ location: locations })
+          .from(locationMemberships)
+          .innerJoin(locations, eq(locations.id, locationMemberships.locationId))
+          .where(eq(locationMemberships.membershipId, membership.id))
+          .all()
+          .map((l) => l.location.id);
   return {
     user: resolved.user,
     kind: 'PRACTICE',
     practiceId: practice.id,
     practiceName: practice.name,
     role: membership.role as PracticeRole,
-    locationIds: locs.map((l) => l.location.id),
+    locationIds,
     permissions: permissionsFor(membership.role as PracticeRole),
     supportGrantId: null,
   };

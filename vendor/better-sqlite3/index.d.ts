@@ -21,7 +21,7 @@ declare module 'better-sqlite3' {
   }
   type TransactionMode = 'deferred' | 'immediate' | 'exclusive';
   interface Transaction {
-    <T>(fn: () => T): T;
+    (...args: unknown[]): unknown;
     deferred<T>(fn: () => T): T;
     immediate<T>(fn: () => T): T;
     exclusive<T>(fn: () => T): T;

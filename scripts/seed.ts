@@ -7,8 +7,6 @@
  * prices at charge capture.
  */
 import Database from 'better-sqlite3';
-import fs from 'node:fs';
-import path from 'node:path';
 import { migrate } from './migrate';
 
 function getDbPath(): string {

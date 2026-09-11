@@ -138,11 +138,11 @@ export function financeSummary(ctx: ActorContext, params: { from?: string; to?: 
         .where(inArray(invoices.id, invoiceIds))
         .all()
     : [];
-  const byPractitioner = practitionerRows
+  const byPractitioner: FinanceSummary['revenueByPractitioner'] = practitionerRows
     .map((pr) => {
       const invs = encounterRows.filter((e) => e.practitionerId === pr.practitioner.id).map((e) => invById.get(e.invoiceId)!).filter(Boolean);
       return {
-        practitionerId: pr.practitioner.id,
+        practitionerId: pr.practitioner.id as string | null,
         name: `Dr ${pr.user.firstName} ${pr.user.lastName}`,
         billedCents: invs.reduce((s, i) => s + i.totalCents, 0),
         paidCents: invs.reduce((s, i) => s + i.paidCents, 0),

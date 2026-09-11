@@ -10,7 +10,6 @@
  * PROCESSED claims with a patient portion, not rejections.
  */
 import { and, eq, desc, inArray, sql } from 'drizzle-orm';
-import type { DB } from '@/db';
 import {
   claims,
   claimLines,
@@ -24,7 +23,7 @@ import {
   encounters,
   invoiceLines,
 } from '@/db/schema';
-import { badRequest, notFound, unprocessable, forbidden } from '@/lib/errors';
+import { notFound, unprocessable, forbidden } from '@/lib/errors';
 import { recordAudit } from './audit.service';
 import { notifyPractice } from './practice.service';
 import { getAdapter, buildClaimBundle } from './claims/adapters';
@@ -43,7 +42,7 @@ async function createClaimFromInvoice(ctx: ActorContext, invoiceId: string) {
 
   const patient = db.select().from(patients).where(eq(patients.id, invoice.patientId)).get();
   if (!patient) throw notFound('Patient not found');
-  const aidRow = db
+  const aidRow = db.$client
     .prepare(
       `SELECT pma.scheme_id AS schemeId, pma.scheme_option_id AS schemeOptionId, sch.name AS schemeName
        FROM patient_medical_aid pma JOIN medical_schemes sch ON sch.id = pma.scheme_id
@@ -94,14 +93,13 @@ async function createClaimFromInvoice(ctx: ActorContext, invoiceId: string) {
 
 /** Create + submit the claim via the practice's configured adapter. */
 export async function submitClaimForInvoice(ctx: ActorContext, invoiceId: string) {
-  const { db } = ctx;
   const claim = await createClaimFromInvoice(ctx, invoiceId);
   return submitClaim(ctx, claim.id);
 }
 
 export async function submitClaim(ctx: ActorContext, claimId: string) {
   const { db } = ctx;
-  let claim = db.select().from(claims).where(eq(claims.id, claimId)).get();
+  const claim = db.select().from(claims).where(eq(claims.id, claimId)).get();
   if (!claim || claim.practiceId !== ctx.practiceId) throw notFound('Claim not found');
   if (!['NOT_SUBMITTED', 'REJECTED', 'FAILED'].includes(claim.status)) {
     throw unprocessable(`Claim cannot be submitted from status ${claim.status}`);
@@ -112,7 +110,7 @@ export async function submitClaim(ctx: ActorContext, claimId: string) {
   if (!ctx.locationIds.includes(invoice.locationId)) throw forbidden('Unauthorized invoice location');
 
   // If re-submitting after a previous submission, reset tracking.
-  const practice = db.prepare(`SELECT claims_adapter_id AS adapterId FROM practices WHERE id = ?`).get(ctx.practiceId) as { adapterId: string } | undefined;
+  const practice = db.$client.prepare(`SELECT claims_adapter_id AS adapterId FROM practices WHERE id = ?`).get(ctx.practiceId) as { adapterId: string } | undefined;
   const adapter = getAdapter(practice?.adapterId ?? 'manual');
 
   try {
@@ -149,7 +147,7 @@ export async function submitClaim(ctx: ActorContext, claimId: string) {
     throw unprocessable(message);
   }
 
-  claim = db.select().from(claims).where(eq(claims.id, claimId)).get();
+  const updated = db.select().from(claims).where(eq(claims.id, claimId)).get()!;
   await recordAudit({
     db,
     practiceId: ctx.practiceId,
@@ -157,13 +155,13 @@ export async function submitClaim(ctx: ActorContext, claimId: string) {
     actorRole: ctx.actorRole,
     action: 'CLAIM_SUBMITTED',
     entityType: 'claim',
-    entityId: claim!.id,
+    entityId: updated.id,
     locationId: invoice.locationId,
-    metadata: { invoiceId: invoice.id, claimedCents: claim!.claimedCents, adapter: adapter.id },
+    metadata: { invoiceId: invoice.id, claimedCents: updated.claimedCents, adapter: adapter.id },
     ip: ctx.ip,
     userAgent: ctx.userAgent,
   });
-  return claim!;
+  return updated;
 }
 
 export interface ClaimResponseInput {

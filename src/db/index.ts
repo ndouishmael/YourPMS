@@ -4,6 +4,7 @@
  * swapping the driver for the native better-sqlite3 or libsql client requires
  * no application changes.
  */
+import fs from 'node:fs';
 import Database from 'better-sqlite3';
 import { drizzle as drizzleSqlite } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
@@ -20,7 +21,6 @@ export function getDatabasePath(): string {
 export function createDb(path?: string) {
   const dbPath = path ?? getDatabasePath();
   if (dbPath !== ':memory:') {
-    const fs = require('node:fs') as typeof import('node:fs');
     fs.mkdirSync(dbPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
   }
   const client = new Database(dbPath);

@@ -69,7 +69,7 @@ function getAssignments(db: DB, patientId: string) {
 
 /** Fetch a patient with tenant + location authorization checks. */
 export function getPatientAuthorized(ctx: PatientAccessContext, patientId: string) {
-  const patient = db.select().from(patients).where(eq(patients.id, patientId)).get();
+  const patient = ctx.db.select().from(patients).where(eq(patients.id, patientId)).get();
   // Tenant isolation: 404 (not 403) for cross-tenant probes — no existence leak.
   if (!patient || patient.practiceId !== ctx.practiceId) throw notFound('Patient not found');
   const assignments = getAssignments(ctx.db, patient.id);

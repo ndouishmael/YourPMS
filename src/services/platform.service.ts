@@ -4,7 +4,7 @@
  * practice requires an explicit reason, is time-boxed, read-only, and every
  * action is audited.
  */
-import { and, eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
 import {
   practices,

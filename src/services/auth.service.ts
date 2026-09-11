@@ -2,7 +2,7 @@
  * Authentication service: practitioner onboarding (signup), login, logout,
  * staff invitation acceptance.
  */
-import { and, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { DB } from '@/db';
 import {
   users,
@@ -57,8 +57,8 @@ export async function signupPractitioner(db: DB, input: SignupInput, meta: AuthM
   if (input.password.length < 10) throw badRequest('Password must be at least 10 characters');
   if (!input.firstName.trim() || !input.lastName.trim()) throw badRequest('First and last name are required');
   if (!input.practiceName.trim()) throw badRequest('Practice name is required');
-  if (!/^\d{6,10}$/.test(input.practiceNumber.trim())) {
-    throw badRequest('Practice number must be 6-10 digits');
+  if (!/^\d{4,10}$/.test(input.practiceNumber.trim())) {
+    throw badRequest('Practice number must be 4-10 digits');
   }
   if (!input.locationName.trim()) throw badRequest('Initial location name is required');
 

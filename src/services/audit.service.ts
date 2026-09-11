@@ -5,7 +5,7 @@
  * Any mutation of a row breaks the chain and is detectable via verifyChain().
  * No application code path updates or deletes audit rows.
  */
-import { desc, eq, and, sql } from 'drizzle-orm';
+import { desc, eq, and, sql, isNull } from 'drizzle-orm';
 import type { DB } from '@/db';
 import { auditLogs, securityEvents } from '@/db/schema';
 import { sha256 } from '@/lib/crypto';
@@ -129,7 +129,8 @@ export function listAudit(
 ) {
   const limit = Math.min(opts.limit ?? 100, 500);
   const conds = [];
-  if (opts.practiceId !== undefined) conds.push(eq(auditLogs.practiceId, opts.practiceId));
+  if (typeof opts.practiceId === 'string') conds.push(eq(auditLogs.practiceId, opts.practiceId));
+  else if (opts.practiceId === null) conds.push(isNull(auditLogs.practiceId));
   if (opts.action) conds.push(eq(auditLogs.action, opts.action));
   const q = db.select().from(auditLogs);
   const rows = conds.length
