@@ -1,0 +1,7 @@
+{
+  "name": "better-sqlite3",
+  "version": "12.2.0",
+  "description": "Local API-compatible shim over Node's built-in node:sqlite for YourPMS sandbox environments where native compilation is unavailable. Implements the subset of the better-sqlite3 API used by drizzle-orm.",
+  "main": "index.js",
+  "types": "index.d.ts"
+}
